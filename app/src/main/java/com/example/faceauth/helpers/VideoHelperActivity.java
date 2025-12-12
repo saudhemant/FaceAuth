@@ -164,16 +164,32 @@ public abstract class VideoHelperActivity extends AppCompatActivity {
     @OptIn(markerClass = ExperimentalGetImage.class)
     private ImageAnalysis.Analyzer createFaceDetector(int width, int height, int lensFacing) {
         graphicOverlay.setPreviewProperties(width, height, lensFacing);
+//        return imageProxy -> {
+//            if (imageProxy.getImage() == null) {
+//                imageProxy.close();
+//                return;
+//            }
+//            int rotationDegrees = imageProxy.getImageInfo().getRotationDegrees();
+//            // converting from YUV format
+//            processor.detectInImage(imageProxy, toBitmap(imageProxy.getImage()), rotationDegrees);
+//            // after done, release the ImageProxy object
+//            imageProxy.close();
+//        };
         return imageProxy -> {
             if (imageProxy.getImage() == null) {
                 imageProxy.close();
                 return;
             }
             int rotationDegrees = imageProxy.getImageInfo().getRotationDegrees();
-            // converting from YUV format
-            processor.detectInImage(imageProxy, toBitmap(imageProxy.getImage()), rotationDegrees);
-            // after done, release the ImageProxy object
-            imageProxy.close();
+
+            // converting from YUV format to bitmap (needed for your custom glasses/crops)
+            Bitmap bitmap = toBitmap(imageProxy.getImage());
+
+            processor.detectInImage(imageProxy, bitmap, rotationDegrees)
+                    .addOnCompleteListener(task -> {
+                        // Close the image ONLY after the ML Kit task finishes (success or failure)
+                        imageProxy.close();
+                    });
         };
     }
 

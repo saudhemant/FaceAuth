@@ -1,190 +1,7 @@
-//package com.example.faceauth.helpers.vision.liveness;
-//
-//
-//import android.graphics.Bitmap;
-//import android.graphics.PointF;
-//import android.util.Log;
-//import androidx.annotation.NonNull;
-//import androidx.annotation.OptIn;
-//import androidx.camera.core.ExperimentalGetImage;
-//import androidx.camera.core.ImageProxy;
-//
-//import com.example.faceauth.helpers.vision.FaceGraphic;
-//import com.example.faceauth.helpers.vision.GraphicOverlay;
-//import com.example.faceauth.helpers.vision.VisionBaseProcessor;
-//import com.google.android.gms.tasks.OnFailureListener;
-//import com.google.android.gms.tasks.OnSuccessListener;
-//import com.google.android.gms.tasks.Task;
-//import com.google.mlkit.vision.common.InputImage;
-//import com.google.mlkit.vision.face.Face;
-//import com.google.mlkit.vision.face.FaceDetection;
-//import com.google.mlkit.vision.face.FaceDetector;
-//import com.google.mlkit.vision.face.FaceDetectorOptions;
-//import com.google.mlkit.vision.face.FaceLandmark;
-//
-//import java.util.HashMap;
-//import java.util.List;
-//import java.util.Locale;
-//
-///** Face Liveness Detector Demo. */
-//public class FaceLivenessDetectorProcessor extends VisionBaseProcessor<List<Face>> {
-//
-//    private static final String MANUAL_TESTING_LOG = "FaceDetectorProcessor";
-//
-//    private final FaceDetector detector;
-//    private final GraphicOverlay graphicOverlay;
-//    private final HashMap<Integer, FaceLiveness> livenessHashMap = new HashMap<>();
-//
-//
-//    private final HashMap<Integer, Integer> blinkCountMap = new HashMap<>();
-//    private final HashMap<Integer, Boolean> isEyesClosedMap = new HashMap<>();
-//
-//    public FaceLivenessDetectorProcessor(GraphicOverlay graphicOverlay) {
-//        this.graphicOverlay = graphicOverlay;
-//        FaceDetectorOptions faceDetectorOptions = new FaceDetectorOptions.Builder()
-//                .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
-//                .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
-//                .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_ALL)
-//                .enableTracking()
-//                .build();
-//        Log.v(MANUAL_TESTING_LOG, "Face detector options: " + faceDetectorOptions);
-//        detector = FaceDetection.getClient(faceDetectorOptions);
-//    }
-//
-//    @OptIn(markerClass = ExperimentalGetImage.class)
-//    public Task<List<Face>> detectInImage(ImageProxy imageProxy, Bitmap bitmap, int rotationDegrees) {
-//        InputImage inputImage = InputImage.fromMediaImage(imageProxy.getImage(), rotationDegrees);
-//        int rotation = rotationDegrees;
-//
-//        // In order to correctly display the face bounds, the orientation of the analyzed
-//        // image and that of the viewfinder have to match. Which is why the dimensions of
-//        // the analyzed image are reversed if its rotation information is 90 or 270.
-//        boolean reverseDimens = rotation == 90 || rotation == 270;
-//        int width;
-//        int height;
-//        if (reverseDimens) {
-//            width = imageProxy.getHeight();
-//            height =  imageProxy.getWidth();
-//        } else {
-//            width = imageProxy.getWidth();
-//            height = imageProxy.getHeight();
-//        }
-//        return detector.process(inputImage)
-//                .addOnSuccessListener(new OnSuccessListener<List<Face>>() {
-//                    @Override
-//                    public void onSuccess(List<Face> faces) {
-//                        graphicOverlay.clear();
-//
-//                        for (Face face : faces) {
-//                            if (!livenessHashMap.containsKey(face.getTrackingId())) {
-//                                FaceLiveness faceLiveness = new FaceLiveness();
-//                                livenessHashMap.put(face.getTrackingId(), faceLiveness);
-//                            }
-//                            boolean isDrowsy = livenessHashMap.get(face.getTrackingId()).isDrowsy(face);
-//                            // Blink Detection Logic
-//                            Float leftEyeOpen = face.getLeftEyeOpenProbability();
-//                            Float rightEyeOpen = face.getRightEyeOpenProbability();
-//
-//                            float BLINK_THRESHOLD = 0.6f;
-//
-//                            if (leftEyeOpen != null && rightEyeOpen != null) {
-//                                boolean leftClosed = leftEyeOpen < BLINK_THRESHOLD;
-//                                boolean rightClosed = rightEyeOpen < BLINK_THRESHOLD;
-//
-//                                if (leftClosed && rightClosed) {
-//                                    Log.d("BlinkDetector", "BLINK DETECTED: Both eyes closed! (L=" + leftEyeOpen + ", R=" + rightEyeOpen + ")");
-//                                } else if (leftClosed) {
-//                                    Log.d("BlinkDetector", "WINK DETECTED: Left eye closed. (L=" + leftEyeOpen + ")");
-//                                } else if (rightClosed) {
-//                                    Log.d("BlinkDetector", "WINK DETECTED: Right eye closed. (R=" + rightEyeOpen + ")");
-//                                }
-//                            }
-//
-//                            FaceGraphic faceGraphic = new FaceGraphic(graphicOverlay, face, isDrowsy, width, height);
-//                            graphicOverlay.add(faceGraphic);
-//                        }
-//                    }
-//                })
-//                .addOnFailureListener(new OnFailureListener() {
-//                    @Override
-//                    public void onFailure(@NonNull Exception e) {
-//                        // intentionally left empty
-//                    }
-//                });
-//    }
-//
-//    public void stop() {
-//        detector.close();
-//    }
-//
-//    private static void logExtrasForTesting(Face face) {
-//        if (face != null) {
-//            Log.v(MANUAL_TESTING_LOG, "face bounding box: " + face.getBoundingBox().flattenToString());
-//            Log.v(MANUAL_TESTING_LOG, "face Euler Angle X: " + face.getHeadEulerAngleX());
-//            Log.v(MANUAL_TESTING_LOG, "face Euler Angle Y: " + face.getHeadEulerAngleY());
-//            Log.v(MANUAL_TESTING_LOG, "face Euler Angle Z: " + face.getHeadEulerAngleZ());
-//
-//            // All landmarks
-//            int[] landMarkTypes =
-//                    new int[] {
-//                            FaceLandmark.MOUTH_BOTTOM,
-//                            FaceLandmark.MOUTH_RIGHT,
-//                            FaceLandmark.MOUTH_LEFT,
-//                            FaceLandmark.RIGHT_EYE,
-//                            FaceLandmark.LEFT_EYE,
-//                            FaceLandmark.RIGHT_EAR,
-//                            FaceLandmark.LEFT_EAR,
-//                            FaceLandmark.RIGHT_CHEEK,
-//                            FaceLandmark.LEFT_CHEEK,
-//                            FaceLandmark.NOSE_BASE
-//                    };
-//            String[] landMarkTypesStrings =
-//                    new String[] {
-//                            "MOUTH_BOTTOM",
-//                            "MOUTH_RIGHT",
-//                            "MOUTH_LEFT",
-//                            "RIGHT_EYE",
-//                            "LEFT_EYE",
-//                            "RIGHT_EAR",
-//                            "LEFT_EAR",
-//                            "RIGHT_CHEEK",
-//                            "LEFT_CHEEK",
-//                            "NOSE_BASE"
-//                    };
-//            for (int i = 0; i < landMarkTypes.length; i++) {
-//                FaceLandmark landmark = face.getLandmark(landMarkTypes[i]);
-//                if (landmark == null) {
-//                    Log.v(
-//                            MANUAL_TESTING_LOG,
-//                            "No landmark of type: " + landMarkTypesStrings[i] + " has been detected");
-//                } else {
-//                    PointF landmarkPosition = landmark.getPosition();
-//                    String landmarkPositionStr =
-//                            String.format(Locale.US, "x: %f , y: %f", landmarkPosition.x, landmarkPosition.y);
-//                    Log.v(
-//                            MANUAL_TESTING_LOG,
-//                            "Position for face landmark: "
-//                                    + landMarkTypesStrings[i]
-//                                    + " is :"
-//                                    + landmarkPositionStr);
-//                }
-//            }
-//            Log.v(
-//                    MANUAL_TESTING_LOG,
-//                    "face left eye open probability: " + face.getLeftEyeOpenProbability());
-//            Log.v(
-//                    MANUAL_TESTING_LOG,
-//                    "face right eye open probability: " + face.getRightEyeOpenProbability());
-//            Log.v(MANUAL_TESTING_LOG, "face smiling probability: " + face.getSmilingProbability());
-//            Log.v(MANUAL_TESTING_LOG, "face tracking id: " + face.getTrackingId());
-//        }
-//    }
-//}
 package com.example.faceauth.helpers.vision.liveness;
 
-
 import android.graphics.Bitmap;
-import android.graphics.PointF;
+import android.graphics.Rect;
 import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.annotation.OptIn;
@@ -202,46 +19,47 @@ import com.google.mlkit.vision.face.Face;
 import com.google.mlkit.vision.face.FaceDetection;
 import com.google.mlkit.vision.face.FaceDetector;
 import com.google.mlkit.vision.face.FaceDetectorOptions;
-import com.google.mlkit.vision.face.FaceLandmark;
 
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 
-/** Face Drowsiness Detector Demo. */
 public class FaceLivenessDetectorProcessor extends VisionBaseProcessor<List<Face>> {
 
-    private static final String MANUAL_TESTING_LOG = "FaceDetectorProcessor";
     private static final String BLINK_LOG = "BlinkDetector";
+    private static final String GLASSES_LOG = "GlassesDetector";
+    private static final String MANUAL_TESTING_LOG = "LivenessDetector";
 
     private final FaceDetector detector;
     private final GraphicOverlay graphicOverlay;
     private final HashMap<Integer, FaceLiveness> livenessHashMap = new HashMap<>();
 
-
     private final HashMap<Integer, Integer> blinkCountMap = new HashMap<>();
     private final HashMap<Integer, Boolean> isEyesClosedMap = new HashMap<>();
 
+    // NEW: Glasses Detector
+    private final GlassesDetector glassesDetector;
+
     public FaceLivenessDetectorProcessor(GraphicOverlay graphicOverlay) {
         this.graphicOverlay = graphicOverlay;
+
+        // Initialize Glasses Detector
+        this.glassesDetector = new GlassesDetector(graphicOverlay.getContext());
+
         FaceDetectorOptions faceDetectorOptions = new FaceDetectorOptions.Builder()
                 .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
                 .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
                 .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_ALL)
                 .enableTracking()
                 .build();
-        Log.v(MANUAL_TESTING_LOG, "Face detector options: " + faceDetectorOptions);
         detector = FaceDetection.getClient(faceDetectorOptions);
     }
 
     @OptIn(markerClass = ExperimentalGetImage.class)
-    public Task<List<Face>> detectInImage(ImageProxy imageProxy, Bitmap bitmap, int rotationDegrees) {
+    public Task<List<Face>> detectInImage(ImageProxy imageProxy, Bitmap originalCameraBitmap, int rotationDegrees) {
         InputImage inputImage = InputImage.fromMediaImage(imageProxy.getImage(), rotationDegrees);
-        int rotation = rotationDegrees;
 
-        // In order to correctly display the face bounds, the orientation of the analyzed
-        // image and that of the viewfinder have to match. Which is why the dimensions of
-        // the analyzed image are reversed if its rotation information is 90 or 270.
+        // Setup for drawing...
+        int rotation = rotationDegrees;
         boolean reverseDimens = rotation == 90 || rotation == 270;
         int width;
         int height;
@@ -252,148 +70,105 @@ public class FaceLivenessDetectorProcessor extends VisionBaseProcessor<List<Face
             width = imageProxy.getWidth();
             height = imageProxy.getHeight();
         }
+
+        // Note: originalCameraBitmap might need rotation if it's raw YUV converted.
+        // For simplicity, we assume originalCameraBitmap is upright or we use coordinates carefully.
+        // Ideally, in VideoHelperActivity, ensure 'toBitmap' handles rotation or use the bitmap provided by MLKit if available differently.
+        // A common issue: The bitmap from YUV might be rotated differently than the MLKit InputImage.
+        // If your crops look wrong, you might need to rotate 'originalCameraBitmap' by 'rotationDegrees' before cropping.
+
         return detector.process(inputImage)
                 .addOnSuccessListener(new OnSuccessListener<List<Face>>() {
                     @Override
                     public void onSuccess(List<Face> faces) {
                         graphicOverlay.clear();
 
-                        // Check if exactly one face is detected
                         if (faces.size() != 1) {
-                            // If 0 faces or > 1 faces, just draw them (if any) but don't run liveness logic
-                            // or you could choose to return early.
-                            for (Face face : faces) {
-                                FaceGraphic faceGraphic = new FaceGraphic(graphicOverlay, face, false, width, height);
-                                graphicOverlay.add(faceGraphic);
-                            }
-                            if (faces.size() > 1) {
-                                Log.d(BLINK_LOG, "Multiple faces detected. Liveness check paused.");
-                            }
+                            if (faces.size() > 1) Log.d(BLINK_LOG, "Multiple faces detected.");
                             return;
                         }
 
-                        // EXACTLY ONE FACE DETECTED
                         Face face = faces.get(0);
 
-                        if (!livenessHashMap.containsKey(face.getTrackingId())) {
-                            FaceLiveness faceLiveness = new FaceLiveness();
-                            livenessHashMap.put(face.getTrackingId(), faceLiveness);
-                            // Initialize blink maps
-                            blinkCountMap.put(face.getTrackingId(), 0);
-                            isEyesClosedMap.put(face.getTrackingId(), false);
+                        // --------------------------------------------------------
+                        // 1. GLASSES DETECTION LOGIC
+                        // --------------------------------------------------------
+
+                        boolean glassesCheckPassed = false;
+
+                        // Crop face from bitmap
+                        Rect bounds = face.getBoundingBox();
+
+                        // Ensure bounds are within bitmap limits to avoid crash
+                        int safeX = Math.max(0, bounds.left);
+                        int safeY = Math.max(0, bounds.top);
+                        int safeWidth = Math.min(originalCameraBitmap.getWidth() - safeX, bounds.width());
+                        int safeHeight = Math.min(originalCameraBitmap.getHeight() - safeY, bounds.height());
+
+                        if (safeWidth > 0 && safeHeight > 0) {
+                            Bitmap faceBitmap = Bitmap.createBitmap(originalCameraBitmap, safeX, safeY, safeWidth, safeHeight);
+
+                            // 0 = no glasses, 1 = glasses
+                            float glassesPrediction = glassesDetector.detect(faceBitmap);
+
+                            // Decide logic: Do you REQUIRE glasses or NO glasses?
+                            // Example: Require NO glasses to pass
+                            if (glassesPrediction < 0.5) {
+                                Log.d(GLASSES_LOG, "No Glasses Detected (" + glassesPrediction + "). Proceeding.");
+                                glassesCheckPassed = true;
+                            } else {
+                                Log.d(GLASSES_LOG, "Glasses Detected (" + glassesPrediction + "). Please remove glasses.");
+                                // Optionally draw a warning on screen here
+                            }
                         }
 
-                        boolean isDrowsy = livenessHashMap.get(face.getTrackingId()).isDrowsy(face);
+                        // --------------------------------------------------------
+                        // 2. BLINK LOGIC (Only runs if Glasses Check Passed)
+                        // --------------------------------------------------------
 
-                        // Blink Detection Logic
-                        Float leftEyeOpen = face.getLeftEyeOpenProbability();
-                        Float rightEyeOpen = face.getRightEyeOpenProbability();
-
-                        float BLINK_THRESHOLD = 0.3f; // Threshold: < 0.3 means closed
-
-                        if (leftEyeOpen != null && rightEyeOpen != null) {
-                            int faceId = face.getTrackingId();
-                            boolean leftClosed = leftEyeOpen < BLINK_THRESHOLD;
-                            boolean rightClosed = rightEyeOpen < BLINK_THRESHOLD;
-
-                            // We consider a "blink" only if BOTH eyes are closed
-                            boolean areBothEyesClosed = leftClosed && rightClosed;
-
-                            // Get previous state (default to false if null)
-                            boolean wasClosedPreviously = Boolean.TRUE.equals(isEyesClosedMap.get(faceId));
-
-                            // Logic: A blink is counted when eyes transition from CLOSED -> OPEN
-                            if (wasClosedPreviously && !areBothEyesClosed) {
-                                int currentCount = blinkCountMap.getOrDefault(faceId, 0) + 1;
-                                blinkCountMap.put(faceId, currentCount);
-
-                                Log.d(BLINK_LOG, "Blink Count: " + currentCount);
-
-                                if (currentCount == 5) {
-                                    Log.d("BLINK_LOG", "✅ Liveness Check Passed (5 Blinks Detected)!");
-                                }
+                        if (glassesCheckPassed) {
+                            if (!livenessHashMap.containsKey(face.getTrackingId())) {
+                                FaceLiveness faceLiveness = new FaceLiveness();
+                                livenessHashMap.put(face.getTrackingId(), faceLiveness);
+                                blinkCountMap.put(face.getTrackingId(), 0);
+                                isEyesClosedMap.put(face.getTrackingId(), false);
                             }
 
-                            // Update state for the next frame
-                            isEyesClosedMap.put(faceId, areBothEyesClosed);
+                            Float leftEyeOpen = face.getLeftEyeOpenProbability();
+                            Float rightEyeOpen = face.getRightEyeOpenProbability();
+                            float BLINK_THRESHOLD = 0.3f;
+
+                            if (leftEyeOpen != null && rightEyeOpen != null) {
+                                int faceId = face.getTrackingId();
+                                boolean areBothEyesClosed = (leftEyeOpen < BLINK_THRESHOLD && rightEyeOpen < BLINK_THRESHOLD);
+                                boolean wasClosedPreviously = Boolean.TRUE.equals(isEyesClosedMap.get(faceId));
+
+                                if (wasClosedPreviously && !areBothEyesClosed) {
+                                    int currentCount = blinkCountMap.getOrDefault(faceId, 0);
+                                    int nextCount = (currentCount % 3) + 1;
+                                    blinkCountMap.put(faceId, nextCount);
+                                    Log.d(BLINK_LOG, "Blink Count: " + nextCount);
+                                    if (nextCount == 3) {
+                                        Log.d(BLINK_LOG, "✅ Liveness Check Passed (Cycle Complete)!");
+                                    }
+                                }
+                                isEyesClosedMap.put(faceId, areBothEyesClosed);
+                            }
                         }
 
-                        FaceGraphic faceGraphic = new FaceGraphic(graphicOverlay, face, isDrowsy, width, height);
+                        // Draw Graphic (Pass generic false for isDrowsy to simplify)
+                        FaceGraphic faceGraphic = new FaceGraphic(graphicOverlay, face, false, width, height);
                         graphicOverlay.add(faceGraphic);
                     }
                 })
-                .addOnFailureListener(new OnFailureListener() {
-                    @Override
-                    public void onFailure(@NonNull Exception e) {
-                        // intentionally left empty
-                    }
-                });
+                .addOnFailureListener(e -> Log.e(MANUAL_TESTING_LOG, "Detection failed", e));
     }
 
+    @Override
     public void stop() {
         detector.close();
-    }
-
-    private static void logExtrasForTesting(Face face) {
-        if (face != null) {
-            Log.v(MANUAL_TESTING_LOG, "face bounding box: " + face.getBoundingBox().flattenToString());
-            Log.v(MANUAL_TESTING_LOG, "face Euler Angle X: " + face.getHeadEulerAngleX());
-            Log.v(MANUAL_TESTING_LOG, "face Euler Angle Y: " + face.getHeadEulerAngleY());
-            Log.v(MANUAL_TESTING_LOG, "face Euler Angle Z: " + face.getHeadEulerAngleZ());
-
-            // All landmarks
-            int[] landMarkTypes =
-                    new int[] {
-                            FaceLandmark.MOUTH_BOTTOM,
-                            FaceLandmark.MOUTH_RIGHT,
-                            FaceLandmark.MOUTH_LEFT,
-                            FaceLandmark.RIGHT_EYE,
-                            FaceLandmark.LEFT_EYE,
-                            FaceLandmark.RIGHT_EAR,
-                            FaceLandmark.LEFT_EAR,
-                            FaceLandmark.RIGHT_CHEEK,
-                            FaceLandmark.LEFT_CHEEK,
-                            FaceLandmark.NOSE_BASE
-                    };
-            String[] landMarkTypesStrings =
-                    new String[] {
-                            "MOUTH_BOTTOM",
-                            "MOUTH_RIGHT",
-                            "MOUTH_LEFT",
-                            "RIGHT_EYE",
-                            "LEFT_EYE",
-                            "RIGHT_EAR",
-                            "LEFT_EAR",
-                            "RIGHT_CHEEK",
-                            "LEFT_CHEEK",
-                            "NOSE_BASE"
-                    };
-            for (int i = 0; i < landMarkTypes.length; i++) {
-                FaceLandmark landmark = face.getLandmark(landMarkTypes[i]);
-                if (landmark == null) {
-                    Log.v(
-                            MANUAL_TESTING_LOG,
-                            "No landmark of type: " + landMarkTypesStrings[i] + " has been detected");
-                } else {
-                    PointF landmarkPosition = landmark.getPosition();
-                    String landmarkPositionStr =
-                            String.format(Locale.US, "x: %f , y: %f", landmarkPosition.x, landmarkPosition.y);
-                    Log.v(
-                            MANUAL_TESTING_LOG,
-                            "Position for face landmark: "
-                                    + landMarkTypesStrings[i]
-                                    + " is :"
-                                    + landmarkPositionStr);
-                }
-            }
-            Log.v(
-                    MANUAL_TESTING_LOG,
-                    "face left eye open probability: " + face.getLeftEyeOpenProbability());
-            Log.v(
-                    MANUAL_TESTING_LOG,
-                    "face right eye open probability: " + face.getRightEyeOpenProbability());
-            Log.v(MANUAL_TESTING_LOG, "face smiling probability: " + face.getSmilingProbability());
-            Log.v(MANUAL_TESTING_LOG, "face tracking id: " + face.getTrackingId());
+        if (glassesDetector != null) {
+            glassesDetector.close();
         }
     }
 }
